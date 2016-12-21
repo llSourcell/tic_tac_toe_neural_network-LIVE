@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>netttt - evolving neural networks to play tic tac toe</title>
+
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+      h2, h4 {
+        margin: 0;
+      }
+      #about {
+        float: right;
+        width: calc(100% - 600px - 2em - 8ex);
+        min-width: 10em;
+      }
+      .control {
+        margin: 1ex;
+      }
+      #workers, #clones {
+        width: 5ex;
+      }
+      #mutation {
+        width: 9ex;
+      }
+      #status, #stats, #demos, #export {
+        margin: 1em;
+      }
+      .demo-container {
+        float: left;
+        margin: 1ex;
+      }
+      #export {
+        clear: left;
+      }
+      #copyright {
+        clear: both;
+        margin: 1em;
+        font-size: small;
+        text-align: center;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="about">
+      <h4>What is this?</h4>
+      <p>
+        <em>netttt</em> uses a genetic algorithm to evolve neural networks to
+        play tic tac toe with some intelligence.  It's written in pure
+        JavaScript and runs completely in your browser.  It utilizes web
+        workers to parallelize the work, and local storage to save your
+        progress.
+      </p>
+      <h4>Links</h4>
+      <ul>
+        <li><a href="https://github.com/chazomaticus/netttt">Code</a></li>
+        <li><a href="test.html">Tests</a></li>
+        <li><a href="play.html">Play</a></li>
+      </ul>
+      <h4>How does it work?</h4>
+      <p>
+        First, we generate every tic tac toe game state where the next move has
+        more than one valid option, a mere 4,298 states.  We then use an AI
+        that plays a perfect game to determine the "right" move or set of
+        equivalent moves to make in each case.  Perfect means the AI 1) never
+        loses, 2) tries to win as quickly as possible, and 3) moves to take
+        advantage of opponent fumbles.
+      </p>
+      <p>
+        We start with a randomly generated population of neural nets of fixed
+        geometry.  Each individual net is scored on how many times it gives a
+        "right" answer in response to being asked what move to make for each
+        game state.  The top scoring nets are favored to populate the next
+        generation through reproduction with a chance of random mutation.  The
+        hope is that after letting it run for a while, you'll end up with a net
+        that can play the game relatively well.
+      </p>
+      <h4>Nothing's happening...</h4>
+      <p>
+        It's easy for the score to get stuck for long periods of time, maybe at
+        a local maximum.  Since it's random, you never know when the right
+        mutation will happen.  Give it a few tens of thousands of generations
+        or so.
+      </p>
+      <h4>What is...</h4>
+      <dl>
+        <dt>Age?</dt>
+        <dd>
+          The trials each individual goes through are ordered from fewest to
+          most squares occupied.  Age is a measure of how many complete trial
+          blocks an individual survives.  An individual that scores age
+          <em>x</em> can play a perfect game until there are <em>x</em> pieces
+          on the board.
+        </dd>
+      </dl>
+      <h4>About the AI</h4>
+      <p>
+        The perfect AI is currently implemented using a modified negamax search
+        algorithm.  This is probably the wrong choice.  Any tree-based search
+        that assumes each player is playing the best move every turn will run
+        into the same problem: all games end in a draw very quickly, making
+        most moves equivalent, as highlighted in <em>WarGames</em>.  My
+        modifications make the search favor winning quickly and try to
+        capitalize on an opponent who might not always make the best move.  A
+        better solution would probably be to simply use the algorithm described
+        in <a href="https://en.wikipedia.org/wiki/Tic-tac-toe">Wikipedia's tic
+        tac toe page</a>.
+      </p>
+      <h4>About the neural nets</h4>
+      <p>
+        The nets are simple feed-forward artificial neural networks.  They use
+        a binary activation function with a variable bias (inverted in the code
+        as a "threshold") and weight for each connection.
+      </p>
+      <p>
+        Each net has 18 input neurons, two for each game square, a few internal
+        layers of different sizes, and one output which represents the
+        desirability of the input game state.  A square's first neuron receives
+        input if that square is occupied by the player for whom we're finding
+        moves, and the second neuron receives input if it's occupied by the
+        opponent.  To find a move to make, each valid move is applied and the
+        resulting game state is evaluated.  The move with the highest scoring
+        state is chosen.
+      </p>
+      <h4>About the genetic algorithm</h4>
+      <p>
+        Each generation after the first is populated using genetic material
+        from the previous generation.  A few of the top performing individuals
+        are simply cloned into the next generation.  The rest of the generation
+        is created from randomly combining the genomes of two parents chosen
+        at random, biased toward the top scoring individuals.  Each child is
+        mutated slightly to stir things up.  The same individual can be chosen
+        as both parents of a child, in which case the slight mutation is the
+        only change to its genome.  The genome consists of all the biases and
+        weights of an individual's neural net.
+      </p>
+      <h4>Room for improvement</h4>
+      <ul>
+        <li>There are many performance optimizations that could be made.</li>
+        <li>
+          Tweaking the neural nets' workings, for example by using a more
+          complex activation function, might yield some improvements.
+        </li>
+        <li>
+          Tweaking the neural nets' geometry might also yield some interesting
+          results.
+        </li>
+        <li>
+          After a number of generations, we run out of significant genetic
+          variation.  It's hard to get out of a local maximum when you aren't
+          looking far enough around for a better solution.  Perhaps a way to
+          introduce more variation at each generation would help.
+        </li>
+    </div>
+
+    <div id="status">
+      <h2 id="current"
+          data-unpaused="Running generation {generation}..."
+          data-paused="Paused at generation {generation}"
+          data-pausing="Pausing..."></h2>
+      <div id="time"
+          data-template="Last generation took {time}ms">&nbsp;</div>
+      <span class="control">
+        <label for="workers">Workers:</label>
+        <input id="workers" type="number" min="1" max="16">
+      </span>
+      <span class="control">
+        <label for="mutation">Mutation rate:</label>
+        <input id="mutation" type="number" min="0.0001" max="0.1"
+            step="0.0001">
+      </span>
+      <span class="control">
+        <label for="clones">Clones:</label>
+        <input id="clones" type="number" min="0" max="20">
+      </span>
+      <br>
+      <span class="control">
+        <input id="pause" type="button" value="Pause"
+            data-paused="Resume" data-unpaused="Pause">
+      </span>
+      <span class="control">
+        <input id="reset" type="button" value="Reset" disabled>
+      </span>
+    </div>
+
+    <div id="stats">
+      <div id="summary">
+        <h4>Last generation:</h4>
+        <dl>
+          <dt>High score:</dt>
+          <dd id="generation-best" data-template="{score}, age {age}: id {id}"
+              data-empty="&nbsp;"></dd>
+          <dt>Average score:</dt>
+          <dd id="generation-average" data-template="{score}"
+              data-empty="&nbsp;"></dd>
+        </dl>
+      </div>
+      <div id="achievements">
+        <h4>Evolutionary achievements:</h4>
+        <ol id="jumps"
+            data-template="&lt;li&gt;Score {score}, age {age}: id {id} from generation {generation}&lt;/li&gt;"
+        ></ol>
+      </div>
+    </div>
+
+    <div id="demos">
+      <h4>Best net playing as:</h4>
+      <div class="demo-container">
+        <div class="demo-header">X vs. random</div>
+        <canvas id="x-random-demo-board" width="150" height="150"></canvas>
+      </div>
+      <div class="demo-container">
+        <div class="demo-header">X vs. smart</div>
+        <canvas id="x-smart-demo-board" width="150" height="150"></canvas>
+      </div>
+      <div class="demo-container">
+        <div class="demo-header">O vs. random</div>
+        <canvas id="o-random-demo-board" width="150" height="150"></canvas>
+      </div>
+      <div class="demo-container">
+        <div class="demo-header">O vs. smart</div>
+        <canvas id="o-smart-demo-board" width="150" height="150"></canvas>
+      </div>
+    </div>
+
+    <div id="export">
+      <h4>Best net source:</h4>
+      <textarea id="best-export" rows="16" cols="64" readonly></textarea>
+    </div>
+
+    <div id="copyright">
+      <a href="https://chazomaticus.github.io/netttt/">netttt</a>
+      <br>
+      Copyright 2013 <a href="https://github.com/chazomaticus">Charles
+      Lindsay</a>
+      <br>
+      <a href="https://gnu.org/licenses/gpl-3.0-standalone.html">Licensed under
+      the terms of the GNU GPL</a>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"
+        integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ="
+        crossorigin="anonymous"></script>
+    <script src="src/ttt.js"></script>
+    <script src="src/neural.js"></script>
+    <script src="src/ai.js"></script>
+    <script src="src/genetic.js"></script>
+    <script src="main.js"></script>
+  </body>
+</html>
