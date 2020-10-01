@@ -17,3 +17,4 @@ Run [`index.html`](https://chazomaticus.github.io/netttt/index.html) to see it i
 ##Credits
 
 Credits gor this code go to [chazomaticus](https://github.com/chazomaticus) i've merely created a wrapper to get people started
+i want to contribute to document of this file.
